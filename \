@@ -1,0 +1,159 @@
+import subprocess
+import time
+import json
+import argparse
+import boto3
+import os
+
+#Asking for input (to enter volume Id)
+#vol_Id = input("Enter Volume-ID ")
+
+#Look for az of given volume.
+#Here we are writing two functions: so that it will be easier to find errors.
+
+
+#Now again two functions to create instance.
+# 1) ins_comm is to store the command.
+def ins_comm(i):
+    return 'aws ec2 run-instances --image-id ami-569ed93c --count 1 --instance-type t1.micro --key-name ec2-backup --output json --placement AvailabilityZone=' + i
+
+def findaz(volumeid):
+    return subprocess.getoutput('aws ec2 describe-volumes --volume-ids '+volumeid+ '  --query "Volumes[*].[AvailabilityZone]" --output text')
+
+# 2) this command is to execute the command through subprocess. 
+def create_ins(z):
+     instance = subprocess.getoutput(ins_comm(z))
+     inst_Id = json.loads(instance)['Instances'][0]['InstanceId']
+     print(inst_Id)
+     return inst_Id
+# inst = create_ins(az)
+
+## time.sleep(20)
+# will wait till the instance is created.
+
+#now we will write two other functions for attaching the volume to the created instance.
+# 1)To store the command.
+def attach_comm(a,b):
+    return 'aws ec2 attach-volume --volume-id ' +  a +' --instance-id ' + b + ' --device /dev/sdf'
+
+# 2)To execute the command through subprocess.
+def attach_vol(c,d):
+    attach = subprocess.getoutput(attach_comm(c,d))
+    return attach
+  
+# attach_vol(vol_Id, inst_Id)
+# # Now will find the public dns name using our json.loads() function.
+ # We can also find this using our aws command: `aws ec2 describe-instances --in    stance-ids 12345 --query 'Reservations[*    ].Instances[*].[PublicDnsName]' --output text`
+# Instances-dict[key]
+# [0] index number for the list which is the value of Instances
+# Publicdnsname is the key name in the dictionary present in the list.
+#pubDNS= json.loads(inst)['Instances'][0]['PublicDnsName']
+#writing functions to find public dns name
+def pub(a):
+    return "aws ec2 describe-instances --instance-ids " +a+" --query 'Reservations[*].Instances[*].[PublicDnsName]' --output text"
+
+#2)second function to execute the command through subprocess.
+def pub_dns(dns):
+    pub_d = subprocess.getoutput(pub(dns))
+    return pub_d
+
+
+
+# Now we are writting two functions to ssh into the instance.
+# 1) To store the comman to ssh includind commands to be executed after ssh.
+def ssh_comm(dns, directory):
+    return "tar -czvf " + directory + ' |  ssh -o StrictHostkeyChecking=no root@'+dns + "dd of=/dev/sdf"+  ' echo $(uname -a); echo $(whoami); echo $(/sbin/disklabel xbd2)'
+
+#tar -czvf' + ' /tmp/backup.tar ' + directory
+# 2) To execute the command through subprocess.
+
+def ssh(Dns, Dir):
+    ssh_into = subprocess.getoutput(ssh_comm(Dns,Dir))
+    return ssh_into
+
+# We are printing the output of commands excuted after ssh.
+#
+#Now we write a function to terminate instance.
+def terminate(i):
+    return subprocess.getoutput('aws ec2 terminate-instances --instance-ids ' + i)
+
+
+def run(vol_id):
+    """Main driver loop.  Interface to program"""
+    if vol_id is None:
+        volId, avZone = create_new_volume(size)
+        return volId
+    else:
+        return vol_id
+
+def create_new_volume(s):
+    x = subprocess.getoutput('aws ec2 create-volume --size '+str(2*s)+' --region us-east-1 --availability-zone us-east-1a --volume-type gp2' )
+    data = json.loads(x)
+    a = data['VolumeId'] 
+    b = data['AvailabilityZone']
+    return a,b
+
+def get_instance_state(EC2InstanceId):
+    ec2 = boto3.resource('ec2')
+    ec2instance = ec2.Instance(EC2InstanceId)
+    x =  ec2instance.state['Name']    
+    return x
+
+def find(name, path):
+    while(True):
+        for root, dirs, files in os.walk(path):
+            if name in files:
+                name = name + '1'
+            else:
+                break
+    return name
+
+
+def compress(directory):
+    x = subprocess.getoutput('tar -czvf' + ' /tmp/backup.tar ' + directory) 
+    return x
+
+def get_size(path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+            dir_size = round(float(total_size/1024**3))
+    return dir_size
+
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser( 
+                  description = 'Backup the data from given dir to the cloud.')
+    parser.add_argument('-v','--volume', metavar='V',
+                    help= 'Enter the volume ID', default=None,
+                    type=str)
+    parser.add_argument('dir', help = 'Locate the directory (mandatory)')
+
+    args = parser.parse_args()
+   
+    d = args.dir 
+    if d:
+        print(args.dir)
+    print(compress(d))    
+    vol_Id = args.volume
+    size = get_size(d)
+    v = run(vol_Id)
+    z = findaz (v)
+    i = create_ins(z)
+    #subprocess.getoutput('aws ec2 wait instance-running --instance-ids' +i)
+
+    while (True):
+        time.sleep(5)
+        state = get_instance_state(i)
+        if state == 'running':
+             print("attaching volume")
+             break
+    
+    attach_vol(v,i) 
+    pubDNS= pub_dns(i)
+    print(ssh(pubDNS, d))
+    terminate(i) 

@@ -1,0 +1,49 @@
+#Here are the Configuration requirements for this project
+
+--> AWS CLI must be configured.
+
+--> Creating keypair for ec2 instances:
+
+We don't want to generate a new keypair per the earlier promise that our tool will not make any changes to the user's setup or environment (a generally useful consideration, based on the Principle Of Least Astonishment).
+
+That would mean we'd have to assume that a default key has been
+configured correctly, but AWS configurations may differ in the use, and
+the user may in fact already have a default key that they may not wish
+to use for this purpose (separation of privileges is a Good Thing(tm)).
+
+So let's stipulate that our tool requires the presence of a dedicated
+SSH keypair.  That is, the user running the tool must have set up a
+keypair called 'ec2-backup' in AWS and must have set up their
+~/.ssh/config to use that key.  That would look like this:
+
+$ ssh-keygen -t rsa -C "ec2-backup only" -f ~/.ssh/ec2-backup -b 4096
+[...]
+$ aws ec2 import-key-pair --key-name ec2-backup \
+                --public-key-material file://~/.ssh/ec2-backup.pub
+                [...]
+$ aws ec2 describe-key-pairs --key-name ec2-backup
+                KEYPAIRS        b6:6f:b5:90:0f:14:85:a6:82:d0:61:b8:78:3c:c8:b1 ec2-backup
+$ grep -A6 amazonaws ~/.ssh/config
+                Host *amazonaws.com
+                User root
+                IdentityFile ~/.ssh/ec2
+                IdentityFile ~/.ssh/ec2-backup
+                IdentitiesOnly yes
+                UserKnownHostsFile /dev/null
+                StrictHostKeyChecking no
+
+
+ At this point, everything is set up and your tool can use the 'ec2-backup' key name to create and access instances:
+
+ $ aws ec2 run-instances --key-name ec2-backup --image-id ami-569ed93c \
+                        --instance-type t1.micro
+                        [...]
+$ ssh ec2-3-84-173-113.compute-1.amazonaws.com hostname
+                        ip-10-159-231-196.ec2.internal
+
+----------------------------------------------------------------
+--> The ec2 instances will use the default security group. It should allow ssh at port 22. 
+
+--> This program should be executed with 'python3'. This program also needs boto3, which is an AWS SDK allows to use AWS resources using python. This program also needs boto3, which is an AWS SDK  for python, allows to use AWS resources using python.
+              --> $ pip3 install boto3
+
