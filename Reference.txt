@@ -46,3 +46,45 @@ Ex: output = subprocess.check_output("ls", shell=True)
 
 # inst_Id = json.loads(inst)['Instances'][0]['InstanceId']
 
+-----------
+argeparse : We are using Python's argparse to accept arguments by the tool.
+ --> We have two different arguments in options:
+    -->Optional arguments: They are optional to use by user.
+    -->Positional arguments: They should be provided mandatory by the user. 
+
+--> We are calling all the functions inside the main function.
+
+-------------------------------------------
+boto3: 
+We have also used boto3 to get the instance state. boto3 is the an AWS SDK for python to operate and get attributes of AWS resources.
+
+------***********------------
+Usage: python3 -i ec2backup.py [-v volume ID] [-h help] dir
+ ex: 1) python3 -i ec2backup.py -v vol-892yyabbs89c ~/Documents
+     2) pyhton3 -i ec2backup.py ~/Documents
+
+ ***In  ssh function we are executing few commands:
+       --> After compressing the file locally, copy the .tar file to remote machine using 'scp' command.
+       --> Now, after ssh create a directory called ~/backup (~/ indicates /home/ubuntu/).
+       $ sudo mkdir ~/backup
+       --> Create a file system before creating a mount point.
+       $ sudo mkfs.ext4 /dev/xvdf
+       --> Now create a mount point at ~/backup to access the data stored for that specific device(volume) ex: /dev/sdf or /dev/xvdf (at remote)
+       $ sudo mount /dev/xvdf ~/backup/
+       -->Now, we move scp'ied .tar file to the the mounted location.
+       $ sudo mv ~/backup.tar ~/backup/
+       --> Get into ~/backup/ directory and untar the .tar file.
+       $ cd ~/backup && tar xvf backup.tar
+
+  Note: After all these steps we have our data succegsfully uploaded to EBS volume. If we want to attach this volume to a different instance and access data.  --> After attaching to a different instance. Create a directory and mount point to it (dont create a file system here because we already created to our device before).
+  $ mkidr ~/data 
+  $ sudo mount /dev/xvdh ~/data
+
+--> Now we can access the data from ~/data directory.
+  $ cd ~/data
+
+Note: Attaching a volume means simply inserting our USB device to our computer. Mounting means our OS accepts the device and creates a partiton for that device. Mount point acts like a gate where we can access the data stored in the volume. Thats'why we need to create a file system and then mount point to acces the data.
+
+
+what is main function in python (if__name__=="__main__":) ?
+    -->
