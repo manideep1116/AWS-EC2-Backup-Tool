@@ -115,7 +115,8 @@ if __name__ == "__main__":
                     type=str)
     #creating positional argument for directory
     parser.add_argument('dir', help = 'Locate the directory (mandatory)')
-
+    
+    # we have executed .parse_args() to parse the input arguments and get a Namespace object that contains the user input.
     args = parser.parse_args()
    
     d = args.dir   #d is given directory
