@@ -18,10 +18,10 @@ keypair called 'ec2-backup' in AWS and must have set up their
 
 $ ssh-keygen -t rsa -C "ec2-backup only" -f ~/.ssh/ec2-backup -b 4096
 [...]
-$ aws ec2 import-key-pair --key-name ec2-backup \
+$ aws ec2 import-key-pair --key-name 'ec2-backup only' \
                 --public-key-material file://~/.ssh/ec2-backup.pub
                 [...]
-$ aws ec2 describe-key-pairs --key-name ec2-backup
+$ aws ec2 describe-key-pairs --key-name ec2-backp
                 KEYPAIRS        b6:6f:b5:90:0f:14:85:a6:82:d0:61:b8:78:3c:c8:b1 ec2-backup
 $ grep -A6 amazonaws ~/.ssh/config
                 Host *amazonaws.com
